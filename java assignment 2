@@ -1,0 +1,404 @@
+import java.util.*;
+
+// ==================== 1. PLAYER CLASS ====================
+class Player {
+    private String playerId;
+    private String name;
+    private String teamName;
+    private String position;
+
+    public Player(String playerId, String name, String teamName, String position) {
+        this.playerId = playerId;
+        this.name = name;
+        this.teamName = teamName;
+        this.position = position;
+    }
+
+    public String getPlayerId() { return playerId; }
+    public String getName() { return name; }
+    public String getTeamName() { return teamName; }
+    public String getPosition() { return position; }
+
+    @Override
+    public String toString() {
+        return String.format("Player ID: %s | Name: %s | Position: %s | Team: %s", playerId, name, position, teamName);
+    }
+}
+
+// ==================== 2. TEAM CLASS ====================
+class Team {
+    private String name;
+    private List<Player> players;
+    private int matchesPlayed;
+    private int wins;
+    private int draws;
+    private int losses;
+    private int goalsFor;
+    private int goalsAgainst;
+    private int points;
+
+    public Team(String name) {
+        this.name = name;
+        this.players = new ArrayList<>();
+    }
+
+    public String getName() { return name; }
+    public List<Player> getPlayers() { return players; }
+    public int getMatchesPlayed() { return matchesPlayed; }
+    public int getWins() { return wins; }
+    public int getDraws() { return draws; }
+    public int getLosses() { return losses; }
+    public int getGoalsFor() { return goalsFor; }
+    public int getGoalsAgainst() { return goalsAgainst; }
+    public int getPoints() { return points; }
+    public int getGoalDifference() { return goalsFor - goalsAgainst; }
+
+    public void addPlayer(Player player) {
+        players.add(player);
+    }
+
+    public void updateStats(int scored, int conceded, boolean isWin, boolean isDraw, boolean isLoss) {
+        this.matchesPlayed++;
+        this.goalsFor += scored;
+        this.goalsAgainst += conceded;
+        if (isWin) {
+            this.wins++;
+            this.points += 3;
+        } else if (isDraw) {
+            this.draws++;
+            this.points += 1;
+        } else if (isLoss) {
+            this.losses++;
+        }
+    }
+}
+
+// ==================== 3. FIXTURE CLASS ====================
+class Fixture {
+    private String fixtureId;
+    private String homeTeam;
+    private String awayTeam;
+    private String timeSlot;
+    private boolean isCompleted;
+
+    public Fixture(String fixtureId, String homeTeam, String awayTeam, String timeSlot) {
+        this.fixtureId = fixtureId;
+        this.homeTeam = homeTeam;
+        this.awayTeam = awayTeam;
+        this.timeSlot = timeSlot;
+        this.isCompleted = false;
+    }
+
+    public String getFixtureId() { return fixtureId; }
+    public String getHomeTeam() { return homeTeam; }
+    public String getAwayTeam() { return awayTeam; }
+    public String getTimeSlot() { return timeSlot; }
+    public boolean isCompleted() { return isCompleted; }
+    public void setCompleted(boolean completed) { isCompleted = completed; }
+
+    @Override
+    public String toString() {
+        String status = isCompleted ? "[Completed]" : "[Upcoming]";
+        return String.format("[%s] %s vs %s at Time Slot: %s %s", fixtureId, homeTeam, awayTeam, timeSlot, status);
+    }
+}
+
+// ==================== 4. MATCH & RESULT CLASS ====================
+class MatchResult {
+    private String fixtureId;
+    private int homeScore;
+    private int awayScore;
+
+    public MatchResult(String fixtureId, int homeScore, int awayScore) {
+        this.fixtureId = fixtureId;
+        this.homeScore = homeScore;
+        this.awayScore = awayScore;
+    }
+
+    public String getFixtureId() { return fixtureId; }
+    public int getHomeScore() { return homeScore; }
+    public int getAwayScore() { return awayScore; }
+}
+
+// ==================== 5. DISCIPLINARY RECORD CLASS ====================
+class DisciplinaryRecord {
+    private String recordId;
+    private String playerId;
+    private String playerName;
+    private String teamName;
+    private String infractionType; // e.g., "Yellow Card", "Red Card", "Penalty"
+    private String matchId;
+
+    public DisciplinaryRecord(String recordId, String playerId, String playerName, String teamName, String infractionType, String matchId) {
+        this.recordId = recordId;
+        this.playerId = playerId;
+        this.playerName = playerName;
+        this.teamName = teamName;
+        this.infractionType = infractionType;
+        this.matchId = matchId;
+    }
+
+    public String getTeamName() { return teamName; }
+
+    @Override
+    public String toString() {
+        return String.format("Record ID: %s | Player: %s (%s) | Infraction: %s | Match: %s", 
+                recordId, playerName, teamName, infractionType, matchId);
+    }
+}
+
+// ==================== 6. STANDINGS & LEAGUE SYSTEM ====================
+class LeagueManager {
+    private Map<String, Team> teams = new HashMap<>();
+    private Map<String, Player> players = new HashMap<>();
+    private List<Fixture> fixtures = new ArrayList<>();
+    private List<MatchResult> results = new ArrayList<>();
+    private List<DisciplinaryRecord> disciplinaryRecords = new ArrayList<>();
+    private int disciplineCounter = 1;
+
+    public boolean addTeam(String name) {
+        if (teams.containsKey(name)) return false;
+        teams.put(name, new Team(name));
+        return true;
+    }
+
+    public boolean addPlayer(String id, String name, String teamName, String position) {
+        if (!teams.containsKey(teamName) || players.containsKey(id)) return false;
+        Player player = new Player(id, name, teamName, position);
+        players.put(id, player);
+        teams.get(teamName).addPlayer(player);
+        return true;
+    }
+
+    // Rule 1: Fixtures must be scheduled without team clashes at the same time slot
+    public boolean createFixture(String id, String home, String away, String timeSlot) {
+        if (!teams.containsKey(home) || !teams.containsKey(away) || home.equalsIgnoreCase(away)) return false;
+        
+        // Check for team time clashes
+        for (Fixture f : fixtures) {
+            if (f.getTimeSlot().equalsIgnoreCase(timeSlot)) {
+                if (f.getHomeTeam().equalsIgnoreCase(home) || f.getAwayTeam().equalsIgnoreCase(home) ||
+                    f.getHomeTeam().equalsIgnoreCase(away) || f.getAwayTeam().equalsIgnoreCase(away)) {
+                    return false; // Clash found!
+                }
+            }
+        }
+        fixtures.add(new Fixture(id, home, away, timeSlot));
+        return true;
+    }
+
+    // Rule 2 & 3: Record Match, update standings immediately with goal difference logic
+    public boolean recordMatchResult(String fixtureId, int homeScore, int awayScore) {
+        Fixture targetFixture = null;
+        for (Fixture f : fixtures) {
+            if (f.getFixtureId().equalsIgnoreCase(fixtureId) && !f.isCompleted()) {
+                targetFixture = f;
+                break;
+            }
+        }
+        if (targetFixture == null) return false;
+
+        targetFixture.setCompleted(true);
+        results.add(new MatchResult(fixtureId, homeScore, awayScore));
+
+        Team homeTeam = teams.get(targetFixture.getHomeTeam());
+        Team awayTeam = teams.get(targetFixture.getAwayTeam());
+
+        boolean homeWin = homeScore > awayScore;
+        boolean awayWin = awayScore > homeScore;
+        boolean draw = homeScore == awayScore;
+
+        homeTeam.updateStats(homeScore, awayScore, homeWin, draw, awayWin);
+        awayTeam.updateStats(awayScore, homeScore, awayWin, draw, homeWin);
+        return true;
+    }
+
+    public void viewStandings() {
+        List<Team> rankedTeams = new ArrayList<>(teams.values());
+        // Rule 3: Points DESC, Goal Difference DESC, Goals For DESC
+        rankedTeams.sort((t1, t2) -> {
+            if (t2.getPoints() != t1.getPoints()) {
+                return Integer.compare(t2.getPoints(), t1.getPoints());
+            }
+            if (t2.getGoalDifference() != t1.getGoalDifference()) {
+                return Integer.compare(t2.getGoalDifference(), t1.getGoalDifference());
+            }
+            return Integer.compare(t2.getGoalsFor(), t1.getGoalsFor());
+        });
+
+        System.out.println("\n--- LIVE STANDINGS ---");
+        System.out.printf("%-15s | %-3s | %-3s | %-3s | %-3s | %-3s | %-3s | %-3s | %-6s\n", 
+                "Team", "P", "W", "D", "L", "GF", "GA", "GD", "Pts");
+        System.out.println("-------------------------------------------------------------------");
+        for (Team t : rankedTeams) {
+            System.out.printf("%-15s | %-3d | %-3d | %-3d | %-3d | %-3d | %-3d | %-3d | %-6d\n",
+                    t.getName(), t.getMatchesPlayed(), t.getWins(), t.getDraws(), t.getLosses(),
+                    t.getGoalsFor(), t.getGoalsAgainst(), t.getGoalDifference(), t.getPoints());
+        }
+    }
+
+    // Rule 4 & 5: Disciplinary action logging & belonging validation
+    public boolean addDisciplinaryRecord(String playerId, String infraction, String matchId) {
+        Player p = players.get(playerId);
+        if (p == null) return false;
+
+        String recordId = "DR" + (disciplineCounter++);
+        disciplinaryRecords.add(new DisciplinaryRecord(recordId, p.getPlayerId(), p.getName(), p.getTeamName(), infraction, matchId));
+        return true;
+    }
+
+    public void viewDisciplinaryLogs() {
+        System.out.println("\n--- DISCIPLINARY LOGS ---");
+        if (disciplinaryRecords.isEmpty()) {
+            System.out.println("No disciplinary records found.");
+            return;
+        }
+        for (DisciplinaryRecord dr : disciplinaryRecords) {
+            System.out.println(dr);
+        }
+    }
+
+    public void viewFixtures() {
+        System.out.println("\n--- FIXTURE LIST ---");
+        if (fixtures.isEmpty()) {
+            System.out.println("No fixtures scheduled yet.");
+            return;
+        }
+        for (Fixture f : fixtures) {
+            System.out.println(f);
+        }
+    }
+    
+    public Map<String, Team> getTeams() { return teams; }
+}
+
+// ==================== 7. CONSOLE APPLICATION ENTRY ====================
+public class SportsLeagueSystem {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        LeagueManager manager = new LeagueManager();
+        boolean running = true;
+
+        System.out.println("==========================================");
+        System.out.println("   SPORTS LEAGUE & MATCH SCHEDULING SYS   ");
+        System.out.println("==========================================");
+
+        while (running) {
+            System.out.println("\n--- MENU OPTIONS ---");
+            System.out.println("1. Add Team");
+            System.out.println("2. Add Player");
+            System.out.println("3. Create Fixture");
+            System.out.println("4. Record Match Result");
+            System.out.println("5. View Standings");
+            System.out.println("6. View Disciplinary Log");
+            System.out.println("7. View All Fixtures");
+            System.out.println("8. Exit");
+            System.out.print("Choose an option (1-8): ");
+
+            int choice;
+            try {
+                choice = Integer.parseInt(scanner.nextLine());
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid input. Please enter a number between 1 and 8.");
+                continue;
+            }
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter Team Name: ");
+                    String teamName = scanner.nextLine().trim();
+                    if (manager.addTeam(teamName)) {
+                        System.out.println("Team added successfully!");
+                    } else {
+                        System.out.println("Error: Team already exists or invalid name.");
+                    }
+                    break;
+
+                case 2:
+                    System.out.print("Enter Player ID: ");
+                    String pId = scanner.nextLine().trim();
+                    System.out.print("Enter Player Name: ");
+                    String pName = scanner.nextLine().trim();
+                    System.out.print("Enter Registered Team Name: ");
+                    String pTeam = scanner.nextLine().trim();
+                    System.out.print("Enter Position: ");
+                    String pPos = scanner.nextLine().trim();
+                    
+                    if (manager.addPlayer(pId, pName, pTeam, pPos)) {
+                        System.out.println("Player registered successfully!");
+                    } else {
+                        System.out.println("Error: Team does not exist or Player ID already taken.");
+                    }
+                    break;
+
+                case 3:
+                    System.out.print("Enter Fixture ID (e.g., F1): ");
+                    String fId = scanner.nextLine().trim();
+                    System.out.print("Enter Home Team: ");
+                    String home = scanner.nextLine().trim();
+                    System.out.print("Enter Away Team: ");
+                    String away = scanner.nextLine().trim();
+                    System.out.print("Enter Time Slot (e.g., Round-1): ");
+                    String slot = scanner.nextLine().trim();
+
+                    if (manager.createFixture(fId, home, away, slot)) {
+                        System.out.println("Fixture scheduled successfully!");
+                    } else {
+                        System.id: out.println("Error: Invalid teams, same team matchup, or team clash in this time slot.");
+                    }
+                    break;
+
+                case 4:
+                    manager.viewFixtures();
+                    System.out.print("Enter Fixture ID to record result: ");
+                    String resFixtureId = scanner.nextLine().trim();
+                    System.out.print("Enter Home Team Score: ");
+                    int homeScore = Integer.parseInt(scanner.nextLine().trim());
+                    System.out.print("Enter Away Team Score: ");
+                    int awayScore = Integer.parseInt(scanner.nextLine().trim());
+
+                    if (manager.recordMatchResult(resFixtureId, homeScore, awayScore)) {
+                        System.out.println("Match result recorded & standings updated!");
+                        
+                        // Optional disciplinary record entry prompt post-match
+                        System.out.print("Add a disciplinary card/penalty for this match? (y/n): ");
+                        if (scanner.nextLine().trim().equalsIgnoreCase("y")) {
+                            System.out.print("Enter Player ID: ");
+                            String discPlayerId = scanner.nextLine().trim();
+                            System.out.print("Enter Infraction Type (Yellow Card / Red Card / Penalty): ");
+                            String infraction = scanner.nextLine().trim();
+                            if (manager.addDisciplinaryRecord(discPlayerId, infraction, resFixtureId)) {
+                                System.out.println("Disciplinary record logged.");
+                            } else {
+                                System.out.println("Error: Player not found.");
+                            }
+                        }
+                    } else {
+                        System.out.println("Error: Fixture not found or already completed.");
+                    }
+                    break;
+
+                case 5:
+                    manager.viewStandings();
+                    break;
+
+                case 6:
+                    manager.viewDisciplinaryLogs();
+                    break;
+
+                case 7:
+                    manager.viewFixtures();
+                    break;
+
+                case 8:
+                    running = false;
+                    System.out.println("Exiting Sports League System. Goodbye!");
+                    break;
+
+                default:
+                    System.out.println("Invalid choice. Please select between 1 and 8.");
+            }
+        }
+        scanner.close();
+    }
+}
